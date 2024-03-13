@@ -1,0 +1,17 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+.env*
+
+# dependencies
+/node_modules
+
+# misc
+.DS_Store
+
+# subgraph artifacts
+build
+generated
+
+# build artifacts
+src/mapping.ts
+abis/SplitMain.json

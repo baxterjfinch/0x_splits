@@ -1,0 +1,270 @@
+specVersion: 0.0.6
+description: 0xSplits
+repository: https://github.com/0xSplits/splits-subgraph
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum/contract
+    name: SplitMain
+    network: {{network}}
+    source:
+      address: {{{splitMainAddress}}}
+      abi: SplitMain
+      startBlock: 5230755
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Split
+        - Account
+      abis:
+        - name: SplitMain
+          file: ./abis/SplitMain.json
+      eventHandlers:
+          {{#ethereum}}
+        - event: CreateSplit(indexed address)
+          handler: handleCreateSplit
+          {{/ethereum}}
+          {{#polygon}}
+        - event: CreateSplit(indexed address,address[],uint32[],uint32,address)
+          handler: handleCreateSplit
+          {{/polygon}}
+        - event: InitiateControlTransfer(indexed address,indexed address)
+          handler: handleInitiateControlTransfer
+        - event: CancelControlTransfer(indexed address)
+          handler: handleCancelControlTransfer
+        - event: ControlTransfer(indexed address,indexed address,indexed address)
+          handler: handleControlTransfer
+          {{#ethereum}}
+        - event: UpdateSplit(indexed address)
+          handler: handleUpdateSplit
+          {{/ethereum}}
+          {{#polygon}}
+        - event: UpdateSplit(indexed address,address[],uint32[],uint32)
+          handler: handleUpdateSplit
+          {{/polygon}}
+        - event: DistributeETH(indexed address,uint256,indexed address)
+          handler: handleDistributeETH
+        - event: DistributeERC20(indexed address,indexed address,uint256,indexed address)
+          handler: handleDistributeERC20
+        - event: Withdrawal(indexed address,uint256,address[],uint256[])
+          handler: handleWithdrawal
+      {{#ethereum}}
+      callHandlers:
+        - function: createSplit(address[],uint32[],uint32,address)
+          handler: handleCreateSplitCall
+        - function: updateSplit(address,address[],uint32[],uint32)
+          handler: handleUpdateSplitCall
+        - function: updateAndDistributeETH(address,address[],uint32[],uint32,address)
+          handler: handleUpdateAndDistributeETHCall
+        - function: updateAndDistributeERC20(address,address,address[],uint32[],uint32,address)
+          handler: handleUpdateAndDistributeERC20Call
+        - function: distributeETH(address,address[],uint32[],uint32,address)
+          handler: handleDistributeETHCall
+        - function: distributeERC20(address,address,address[],uint32[],uint32,address)
+          handler: handleDistributeERC20Call
+        - function: withdraw(address,uint256,address[])
+          handler: handleWithdrawCall
+      {{/ethereum}}
+      file: ./src/mapping.ts
+
+  - kind: ethereum/contract
+    name: LiquidSplitFactory
+    network: {{network}}
+    source:
+      address: {{{liquidSplitFactoryAddress}}}
+      abi: LiquidSplitFactory
+      startBlock: 5230755
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - LiquidSplit
+      abis:
+        - name: FullLiquidSplit
+          file: ./abis/FullLiquidSplit.json
+        - name: LiquidSplitFactory
+          file: ./abis/LiquidSplitFactory.json
+      eventHandlers:
+        - event: CreateLS1155Clone(indexed address)
+          handler: handleCreateLiquidSplitClone
+      file: ./src/liquid-split.mapping.ts
+templates:
+  - kind: ethereum/contract
+    name: VestingModule
+    network: {{network}}
+    source: 
+      abi: VestingModule
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - VestingStream
+      abis:
+        - name: VestingModule
+          file: ./abis/VestingModule.json
+      eventHandlers:
+        - event: CreateVestingStream(indexed uint256,indexed address,uint256)
+          handler: handleCreateVestingStream
+        - event: ReleaseFromVestingStream(indexed uint256,uint256)
+          handler: handleReleaseFromVestingStream
+      file: ./src/vesting.mapping.ts
+  - kind: ethereum/contract
+    name: WaterfallModule
+    network: {{network}}
+    source: 
+      abi: WaterfallModule
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - WaterfallTranche
+      abis:
+        - name: WaterfallModule
+          file: ./abis/WaterfallModule.json
+      eventHandlers:
+        - event: WaterfallFunds(address[],uint256[],uint256)
+          handler: handleWaterfallFunds
+        - event: RecoverNonWaterfallFunds(address,address,uint256)
+          handler: handleRecoverNonWaterfallFunds
+      file: ./src/waterfall.mapping.ts
+  - kind: ethereum/contract
+    name: LiquidSplit
+    network: {{network}}
+    source: 
+      abi: FullLiquidSplit
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - LiquidSplit
+        - Holder
+      abis:
+        - name: FullLiquidSplit
+          file: ./abis/FullLiquidSplit.json
+      eventHandlers:
+        - event: TransferSingle(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleTransferSingle1155
+        - event: TransferBatch(indexed address,indexed address,indexed address,uint256[],uint256[])
+          handler: handleTransferBatch1155
+        - event: Transfer(indexed address,indexed address,indexed uint256)
+          handler: handleTransfer721
+      file: ./src/liquid-split.mapping.ts
+  - kind: ethereum/contract
+    name: UniV3Oracle
+    network: {{network}}
+    source: 
+      abi: UniV3Oracle
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Oracle
+        - UniswapV3TWAPPairDetail
+      abis:
+        - name: UniV3Oracle
+          file: ./abis/UniV3Oracle.json
+        - name: UniV3Pool
+          file: ./abis/UniV3Pool.json
+      eventHandlers:
+        - event: SetDefaultPeriod(uint32)
+          handler: handleSetDefaultPeriod
+        - event: SetPairDetails(((address,address),(address,uint32))[])
+          handler: handleSetPairDetails
+        - event: SetPaused(bool)
+          handler: handleSetPaused
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleOwnershipTransferred
+      file: ./src/oracle.mapping.ts
+  - kind: ethereum/contract
+    name: ChainlinkOracle
+    network: {{network}}
+    source:
+      abi: ChainlinkOracle
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Oracle
+        - ChainlinkPairDetail
+      abis:
+        - name: ChainlinkOracle
+          file: ./abis/ChainlinkOracle.json
+      eventHandlers:
+        - event: SetPairDetails(((address,address),(bytes,bool))[])
+          handler: handleSetPairDetails
+        - event: SetPaused(bool)
+          handler: handleSetPaused
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleOwnershipTransferred
+      file: ./src/chainlink-oracle.mapping.ts
+  - kind: ethereum/contract
+    name: Swapper
+    network: {{network}}
+    source: 
+      abi: Swapper
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - Swapper
+        - SwapBalance
+      abis:
+        - name: Swapper
+          file: ./abis/Swapper.json
+      eventHandlers:
+        - event: SetBeneficiary(address)
+          handler: handleSetBeneficiary
+        - event: SetTokenToBeneficiary(address)
+          handler: handleSetTokenToBeneficiary
+        - event: SetOracle(address)
+          handler: handleSetOracle
+        - event: SetDefaultScaledOfferFactor(uint32)
+          handler: handleSetDefaultScaledOfferFactor
+        - event: SetPairScaledOfferFactors(((address,address),uint32)[])
+          handler: handleSetPairScaledOfferFactors
+        - event: SetPaused(bool)
+          handler: handleSetPaused
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleOwnershipTransferred
+        - event: ExecCalls((address,uint256,bytes)[])
+          handler: handleExecCalls
+          receipt: true
+        - event: Flash(indexed address,indexed address,((address,address),uint128,bytes)[],address,uint256[],uint256)
+          handler: handleFlash
+      file: ./src/swapper.mapping.ts
+  - kind: ethereum/contract
+    name: PassThroughWallet
+    network: {{network}}
+    source: 
+      abi: PassThroughWallet
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.7
+      language: wasm/assemblyscript
+      entities:
+        - PassThroughWallet
+        - TokenRelease
+      abis:
+        - name: PassThroughWallet
+          file: ./abis/PassThroughWallet.json
+      eventHandlers:
+        - event: SetPassThrough(address)
+          handler: handleSetPassThrough
+        - event: SetPaused(bool)
+          handler: handleSetPaused
+        - event: OwnershipTransferred(indexed address,indexed address)
+          handler: handleOwnershipTransferred
+        - event: ExecCalls((address,uint256,bytes)[])
+          handler: handleExecCalls
+        - event: PassThrough(indexed address,address[],uint256[])
+          handler: handlePassThrough
+      file: ./src/pass-through-wallet.mapping.ts

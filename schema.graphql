@@ -1,0 +1,926 @@
+enum ParentEntityType {
+  liquidSplit
+  recoup
+  diversifier
+}
+
+enum AccountType {
+  user
+  split
+  vesting
+  waterfall
+  liquidSplit
+  swapper
+  passThroughWallet
+}
+
+interface Account {
+  id: ID! # ethereum address
+  type: AccountType!
+  internalBalances: [TokenInternalBalance!]! @derivedFrom(field: "account")
+  withdrawals: [TokenWithdrawal!]! @derivedFrom(field: "account")
+  distributions: [TokenDistribution!]! @derivedFrom(field: "account")
+  accountEvents: [AccountEvent!]! @derivedFrom(field: "account")
+  contractEarnings: [ContractEarnings!]! @derivedFrom(field: "account")
+  createdBlock: Int!
+  latestBlock: Int!
+  latestActivity: BigInt!
+  parentEntityType: ParentEntityType
+
+  # Deprecated
+  upstream: [Recipient!] @derivedFrom(field: "account")
+}
+
+type Token @entity {
+  id: ID! # ethereum address
+  internalBalances: [TokenInternalBalance!]! @derivedFrom(field: "token")
+  withdrawals: [TokenWithdrawal!]! @derivedFrom(field: "token")
+}
+
+interface TokenBalance {
+  id: ID! # ${prefix}-${accountId}-${tokenId}
+  amount: BigInt!
+  token: Token!
+  account: Account!
+}
+
+type TokenInternalBalance implements TokenBalance @entity {
+  id: ID! # ib-${accountId}-${tokenId}
+  amount: BigInt!
+  token: Token!
+  account: Account!
+}
+
+type TokenWithdrawal implements TokenBalance @entity {
+  id: ID! # w-${accountId}-${tokenId}
+  amount: BigInt!
+  token: Token!
+  account: Account!
+}
+
+type TokenDistribution implements TokenBalance @entity {
+  id: ID! # d-${accountId}-${tokenId}
+  amount: BigInt!
+  token: Token!
+  account: Account!
+}
+
+type ContractEarnings @entity {
+  id: ID! # ce-${contractId}-${accountId}
+  contract: Account!
+  account: Account!
+  internalBalances: [ContractEarningsInternalBalance!]!
+    @derivedFrom(field: "contractEarnings")
+  withdrawals: [ContractEarningsWithdrawal!]!
+    @derivedFrom(field: "contractEarnings")
+}
+
+interface ContractEarningsBalance {
+  id: ID!
+  contractEarnings: ContractEarnings!
+  token: Token!
+  amount: BigInt!
+}
+
+type ContractEarningsInternalBalance implements ContractEarningsBalance
+  @entity {
+  id: ID! # ib-${contractEarningsId}-${tokenId}
+  contractEarnings: ContractEarnings!
+  token: Token!
+  amount: BigInt!
+}
+
+type ContractEarningsWithdrawal implements ContractEarningsBalance @entity {
+  id: ID! # w-${contractEarningsId}-${tokenId}
+  contractEarnings: ContractEarnings!
+  token: Token!
+  amount: BigInt!
+}
+
+type User implements Account @entity {
+  id: ID! # ethereum address
+  type: AccountType!
+  internalBalances: [TokenInternalBalance!]! @derivedFrom(field: "account")
+  withdrawals: [TokenWithdrawal!]! @derivedFrom(field: "account")
+  distributions: [TokenDistribution!]! @derivedFrom(field: "account")
+  accountEvents: [AccountEvent!]! @derivedFrom(field: "account")
+  contractEarnings: [ContractEarnings!]! @derivedFrom(field: "account")
+  createdBlock: Int!
+  latestBlock: Int!
+  latestActivity: BigInt!
+  parentEntityType: ParentEntityType
+
+  # Deprecated
+  upstream: [Recipient!] @derivedFrom(field: "account")
+}
+
+type Split implements Account @entity {
+  id: ID! # ethereum address
+  type: AccountType!
+  internalBalances: [TokenInternalBalance!]! @derivedFrom(field: "account")
+  withdrawals: [TokenWithdrawal!]! @derivedFrom(field: "account")
+  distributions: [TokenDistribution!]! @derivedFrom(field: "account")
+  accountEvents: [AccountEvent!]! @derivedFrom(field: "account")
+  contractEarnings: [ContractEarnings!]! @derivedFrom(field: "account")
+  createdBlock: Int!
+  latestBlock: Int!
+  latestActivity: BigInt!
+  parentEntityType: ParentEntityType
+
+  controller: Bytes!
+  newPotentialController: Bytes!
+  distributorFee: BigInt!
+  # can't use derived relations inside mapping.ts
+  # recipients: [Recipient!]! @derivedFrom(field: "split")
+  recipients: [Recipient!]!
+
+  liquidSplit: LiquidSplit @derivedFrom(field: "split")
+
+  # Deprecated
+  upstream: [Recipient!] @derivedFrom(field: "account")
+  vestingModules: [VestingModule!] @derivedFrom(field: "splitBeneficiary")
+}
+
+type Recipient @entity {
+  id: ID! # ${splitId}-${accountId}
+  split: Split!
+  account: Account!
+  ownership: BigInt!
+}
+
+type VestingModule implements Account @entity {
+  id: ID! # ethereum address
+  type: AccountType!
+  internalBalances: [TokenInternalBalance!]! @derivedFrom(field: "account")
+  withdrawals: [TokenWithdrawal!]! @derivedFrom(field: "account")
+  distributions: [TokenDistribution!]! @derivedFrom(field: "account")
+  accountEvents: [AccountEvent!]! @derivedFrom(field: "account")
+  contractEarnings: [ContractEarnings!]! @derivedFrom(field: "account")
+  createdBlock: Int!
+  latestBlock: Int!
+  latestActivity: BigInt!
+  parentEntityType: ParentEntityType
+
+  vestingPeriod: BigInt!
+  beneficiary: Account!
+  streams: [VestingStream!] @derivedFrom(field: "account")
+
+  # Deprecated
+  upstream: [Recipient!] @derivedFrom(field: "account")
+  splitBeneficiary: Split
+}
+
+type VestingStream @entity {
+  id: ID! # ${vestingId}-${streamId}
+  streamId: BigInt!
+  token: Token!
+  totalAmount: BigInt!
+  startTime: BigInt!
+  account: VestingModule!
+
+  claimedAmount: BigInt!
+}
+
+type WaterfallModule implements Account @entity {
+  id: ID! # ethereum address
+  type: AccountType!
+  internalBalances: [TokenInternalBalance!]! @derivedFrom(field: "account")
+  withdrawals: [TokenWithdrawal!]! @derivedFrom(field: "account")
+  distributions: [TokenDistribution!]! @derivedFrom(field: "account")
+  accountEvents: [AccountEvent!]! @derivedFrom(field: "account")
+  contractEarnings: [ContractEarnings!]! @derivedFrom(field: "account")
+  createdBlock: Int!
+  latestBlock: Int!
+  latestActivity: BigInt!
+  parentEntityType: ParentEntityType
+
+  token: Token!
+  tranches: [WaterfallTranche!] @derivedFrom(field: "account")
+  totalClaimedAmount: BigInt!
+  nonWaterfallRecipientAccount: Account!
+
+  # Deprecated
+  upstream: [Recipient!] @derivedFrom(field: "account")
+  nonWaterfallRecipient: Bytes!
+}
+
+type WaterfallTranche @entity {
+  id: ID! #${waterfallId}-${trancheId}
+  account: WaterfallModule!
+  startAmount: BigInt!
+  size: BigInt # optional because the residual has no size
+  claimedAmount: BigInt!
+  recipient: Account!
+}
+
+type LiquidSplit implements Account @entity {
+  id: ID! # ethereum address
+  type: AccountType!
+  internalBalances: [TokenInternalBalance!]! @derivedFrom(field: "account")
+  withdrawals: [TokenWithdrawal!]! @derivedFrom(field: "account")
+  distributions: [TokenDistribution!]! @derivedFrom(field: "account")
+  accountEvents: [AccountEvent!]! @derivedFrom(field: "account")
+  contractEarnings: [ContractEarnings!]! @derivedFrom(field: "account")
+  createdBlock: Int!
+  latestBlock: Int!
+  latestActivity: BigInt!
+  parentEntityType: ParentEntityType
+
+  distributorFee: BigInt!
+  holders: [Holder!]! @derivedFrom(field: "liquidSplit")
+  split: Split!
+  isFactoryGenerated: Boolean!
+
+  # Deprecated
+  upstream: [Recipient!] @derivedFrom(field: "account")
+}
+
+type Holder @entity {
+  id: ID! # ${splitId}-${accountId}
+  liquidSplit: LiquidSplit!
+  account: Account!
+  ownership: BigInt!
+}
+
+type Transaction @entity {
+  id: ID! #txHash
+  # can't use derived relations inside mapping.ts
+  # distributionEvents: [DistributionEvent!]! @derivedFrom(field: "transaction")
+  distributionEvents: [DistributionEvent!]
+  setSplitEvents: [SetSplitEvent!]
+  withdrawEvents: [WithdrawalEvent!]
+}
+
+interface Oracle {
+  id: ID!
+  type: OracleType!
+  createdBlock: Int
+  latestBlock: Int
+  latestActivity: BigInt
+}
+
+enum OracleType {
+  uniswapV3TWAP
+  chainlink
+  unknown
+}
+
+type UniswapV3TWAPPairDetail @entity {
+  id: ID! # ${oracleId}-${base}-${quote}
+  oracle: UniswapV3TWAPOracle!
+  base: Token!
+  quote: Token!
+  pool: Bytes!
+  fee: Int!
+  period: BigInt!
+}
+
+type ChainlinkFeed @entity {
+  id: ID! # ${oracleId}-${base}-${quote}-${feed}
+  chainlinkPairDetail: ChainlinkPairDetail!
+  aggregatorV3: Bytes!
+  decimals: BigInt!
+  staleAfter: BigInt!
+  mul: Boolean!
+}
+
+type ChainlinkPairDetail @entity {
+  id: ID! # ${oracleId}-${base}-${quote}
+  oracle: ChainlinkOracle!
+  base: Token!
+  quote: Token!
+  feeds: [ChainlinkFeed!]! @derivedFrom(field: "chainlinkPairDetail")
+  inverted: Boolean!
+}
+
+type UniswapV3TWAPOracle implements Oracle @entity {
+  id: ID! #ethereum address
+  type: OracleType!
+  createdBlock: Int
+  latestBlock: Int
+  latestActivity: BigInt
+
+  owner: Account
+  paused: Boolean
+  defaultPeriod: BigInt
+  pairDetails: [UniswapV3TWAPPairDetail!] @derivedFrom(field: "oracle")
+}
+
+type ChainlinkOracle implements Oracle @entity {
+  id: ID! #ethereum address
+  type: OracleType!
+  createdBlock: Int
+  latestBlock: Int
+  latestActivity: BigInt
+
+  owner: Account
+  paused: Boolean
+  sequencerFeed: Bytes
+  chainlinkPairDetails: [ChainlinkPairDetail!] @derivedFrom(field: "oracle")
+}
+
+type UnknownOracle implements Oracle @entity {
+  id: ID! #ethereum address
+  type: OracleType!
+  createdBlock: Int
+  latestBlock: Int
+  latestActivity: BigInt
+}
+
+type SwapBalance @entity {
+  id: ID! # ${swapperId}-${inputTokenId}-${outputTokenId}
+  swapper: Swapper!
+  inputToken: Token!
+  inputAmount: BigInt!
+  outputToken: Token!
+  outputAmount: BigInt!
+}
+
+type SwapperPairOverride @entity {
+  id: ID! # ${swapperId}-${base}-${quote}
+  swapper: Swapper!
+  base: Token!
+  quote: Token!
+  scaledOfferFactor: BigInt!
+}
+
+type Swapper implements Account @entity {
+  id: ID! # ethereum address
+  type: AccountType!
+  internalBalances: [TokenInternalBalance!]! @derivedFrom(field: "account")
+  withdrawals: [TokenWithdrawal!]! @derivedFrom(field: "account")
+  distributions: [TokenDistribution!]! @derivedFrom(field: "account")
+  accountEvents: [AccountEvent!]! @derivedFrom(field: "account")
+  contractEarnings: [ContractEarnings!]! @derivedFrom(field: "account")
+  createdBlock: Int!
+  latestBlock: Int!
+  latestActivity: BigInt!
+  parentEntityType: ParentEntityType
+
+  owner: Account!
+  paused: Boolean!
+  beneficiary: Account!
+  tokenToBeneficiary: Token!
+  defaultScaledOfferFactor: BigInt!
+  scaledOfferFactorPairOverrides: [SwapperPairOverride!]!
+    @derivedFrom(field: "swapper")
+  oracle: Oracle!
+
+  swapBalances: [SwapBalance!]! @derivedFrom(field: "swapper")
+
+  # Deprecated
+  upstream: [Recipient!] @derivedFrom(field: "account")
+}
+
+# TODO: should this be more generic? On Account?
+type TokenRelease @entity {
+  id: ID! # r-${accountId}-${tokenId}
+  amount: BigInt!
+  token: Token!
+  account: PassThroughWallet!
+}
+
+type PassThroughWalletSwapBalanceOutput @entity {
+  id: ID! # ${passThroughWalletSwapBalanceId}-${tokenId}
+  token: Token!
+  amount: BigInt!
+
+  passThroughWalletSwapBalance: PassThroughWalletSwapBalance!
+}
+
+type PassThroughWalletSwapBalance @entity {
+  id: ID! # ${passThroughWalletId}-${inputTokenId}
+  inputToken: Token!
+  inputAmount: BigInt!
+  outputs: [PassThroughWalletSwapBalanceOutput!]!
+    @derivedFrom(field: "passThroughWalletSwapBalance")
+
+  passThroughWallet: PassThroughWallet!
+}
+
+type PassThroughWallet implements Account @entity {
+  id: ID! # ethereum address
+  type: AccountType!
+  internalBalances: [TokenInternalBalance!]! @derivedFrom(field: "account")
+  withdrawals: [TokenWithdrawal!]! @derivedFrom(field: "account")
+  distributions: [TokenDistribution!]! @derivedFrom(field: "account")
+  accountEvents: [AccountEvent!]! @derivedFrom(field: "account")
+  contractEarnings: [ContractEarnings!]! @derivedFrom(field: "account")
+  createdBlock: Int!
+  latestBlock: Int!
+  latestActivity: BigInt!
+  parentEntityType: ParentEntityType
+
+  owner: Account!
+  paused: Boolean!
+  passThroughAccount: Account!
+
+  swapBalances: [PassThroughWalletSwapBalance]!
+    @derivedFrom(field: "passThroughWallet")
+
+  # Deprecated
+  passThroughBalances: [TokenRelease!]! @derivedFrom(field: "account")
+  upstream: [Recipient!] @derivedFrom(field: "account")
+}
+
+interface AccountEvent {
+  id: ID! # ${prefix}-${txHash}-${logIdx}-${accountId}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+}
+
+enum SetSplitType {
+  create
+  update
+}
+
+type SetSplitEvent implements AccountEvent @entity {
+  id: ID! # sse-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+  type: SetSplitType
+
+  recipientAddedEvents: [RecipientAddedEvent!]
+    @derivedFrom(field: "setSplitEvent")
+  recipientRemovedEvents: [RecipientRemovedEvent!]
+    @derivedFrom(field: "setSplitEvent")
+}
+
+type RecipientAddedEvent implements AccountEvent @entity {
+  id: ID!
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  setSplitEvent: SetSplitEvent!
+  ownership: BigInt!
+}
+
+type RecipientRemovedEvent implements AccountEvent @entity {
+  id: ID!
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  setSplitEvent: SetSplitEvent!
+}
+
+type DistributionEvent implements AccountEvent @entity {
+  id: ID! # de-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+  token: Token!
+  amount: BigInt!
+
+  receiveDistributionEvents: [ReceiveDistributionEvent!]!
+    @derivedFrom(field: "distributionEvent")
+  distributeDistributionEvent: DistributeDistributionEvent
+    @derivedFrom(field: "distributionEvent")
+}
+
+type ReceiveDistributionEvent implements AccountEvent @entity {
+  id: ID! # r-de-${txHash}-${logIdx}-${accountId}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  token: Token!
+  amount: BigInt!
+  distributionEvent: DistributionEvent!
+}
+
+type DistributeDistributionEvent implements AccountEvent @entity {
+  id: ID! # d-de-${txHash}-${logIdx}-${accountId}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  token: Token!
+  amount: BigInt!
+  distributionEvent: DistributionEvent!
+}
+
+type WithdrawalEvent implements AccountEvent @entity {
+  id: ID! # we-${txHash}-${logIdx}-${accountId}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+  tokenWithdrawalEvents: [TokenWithdrawalEvent!]!
+    @derivedFrom(field: "withdrawalEvent")
+}
+
+type TokenWithdrawalEvent @entity {
+  id: ID! # t-we-${txHash}-${logIdx}-${accountId}-${tokenId}
+  token: Token!
+  amount: BigInt!
+  withdrawalEvent: WithdrawalEvent!
+}
+
+enum ControlTransferType {
+  initiate
+  cancel
+  transfer
+}
+
+type ControlTransferEvent implements AccountEvent @entity {
+  id: ID! # ct-{txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  type: ControlTransferType
+  transaction: Transaction!
+  fromUserEvent: FromUserControlTransferEvent!
+    @derivedFrom(field: "controlTransferEvent")
+  toUserEvent: ToUserControlTransferEvent
+    @derivedFrom(field: "controlTransferEvent")
+}
+
+type FromUserControlTransferEvent implements AccountEvent @entity {
+  id: ID! # fu-ct-{txHash}-${logIdx}-${accountId}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  controlTransferEvent: ControlTransferEvent!
+}
+
+type ToUserControlTransferEvent implements AccountEvent @entity {
+  id: ID! # tu-ct-{txHash}-${logIdx}-${accountId}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  controlTransferEvent: ControlTransferEvent!
+}
+
+type CreateVestingModuleEvent implements AccountEvent @entity {
+  id: ID! # cvme-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+}
+
+type CreateVestingStreamEvent implements AccountEvent @entity {
+  id: ID! # cvse-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+  token: Token!
+  amount: BigInt!
+}
+
+type ReleaseVestingFundsEvent implements AccountEvent @entity {
+  id: ID!
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+  token: Token!
+  amount: BigInt!
+}
+
+type ReceiveVestedFundsEvent implements AccountEvent @entity {
+  id: ID!
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  releaseVestingFundsEvent: ReleaseVestingFundsEvent!
+}
+
+type CreateWaterfallModuleEvent implements AccountEvent @entity {
+  id: ID! # cwme-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+
+  recipientAddedEvents: [WaterfallRecipientAddedEvent!]
+    @derivedFrom(field: "createWaterfallEvent")
+}
+
+type WaterfallRecipientAddedEvent implements AccountEvent @entity {
+  id: ID!
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  createWaterfallEvent: CreateWaterfallModuleEvent!
+}
+
+type WaterfallFundsEvent implements AccountEvent @entity {
+  id: ID! # wfe-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+  amount: BigInt!
+
+  receiveFundsEvents: [ReceiveWaterfallFundsEvent!]!
+    @derivedFrom(field: "waterfallFundsEvent")
+}
+
+type ReceiveWaterfallFundsEvent implements AccountEvent @entity {
+  id: ID! # r-wfe-${txHash}-${logIdx}-${accountId}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  amount: BigInt!
+  waterfallFundsEvent: WaterfallFundsEvent!
+}
+
+type RecoverNonWaterfallFundsEvent implements AccountEvent @entity {
+  id: ID! # rnwfe-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+  amount: BigInt!
+  nonWaterfallToken: Token!
+
+  receiveNonWaterfallFundsEvent: ReceiveNonWaterfallFundsEvent!
+    @derivedFrom(field: "recoverNonWaterfallFundsEvent")
+}
+
+type ReceiveNonWaterfallFundsEvent implements AccountEvent @entity {
+  id: ID! # r-rnwfe-${txHash}-${logIdx}-${accountId}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  recoverNonWaterfallFundsEvent: RecoverNonWaterfallFundsEvent!
+}
+
+type CreateLiquidSplitEvent implements AccountEvent @entity {
+  id: ID! # clse-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+}
+
+enum NFTTransferType {
+  transfer
+  mint
+  burn
+}
+
+type LiquidSplitNFTTransferEvent implements AccountEvent @entity {
+  id: ID! # nte-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  amount: BigInt # not required right now for non-factory generated liquid splits. Maybe this should be ownership?
+  transaction: Transaction!
+  transferType: NFTTransferType
+
+  nftAddedEvent: LiquidSplitNFTAddedEvent
+    @derivedFrom(field: "nftTransferEvent")
+  nftRemovedEvent: LiquidSplitNFTRemovedEvent
+    @derivedFrom(field: "nftTransferEvent")
+}
+
+type LiquidSplitNFTAddedEvent implements AccountEvent @entity {
+  id: ID! # add-nte-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  nftTransferEvent: LiquidSplitNFTTransferEvent!
+}
+
+type LiquidSplitNFTRemovedEvent implements AccountEvent @entity {
+  id: ID! # rem-nte-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  nftTransferEvent: LiquidSplitNFTTransferEvent!
+}
+
+type CreateSwapperEvent implements AccountEvent @entity {
+  id: ID! # cswe-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+
+  token: Token!
+  beneficiaryAddedEvent: SwapperBeneficiaryAddedEvent
+    @derivedFrom(field: "createSwapperEvent")
+}
+
+type UpdateSwapperBeneficiaryEvent implements AccountEvent @entity {
+  id: ID! # usbe-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+
+  beneficiaryAddedEvent: SwapperBeneficiaryAddedEvent
+    @derivedFrom(field: "updateSwapperEvent")
+  beneficiaryRemovedEvent: SwapperBeneficiaryRemovedEvent
+    @derivedFrom(field: "updateSwapperEvent")
+}
+
+type SwapperBeneficiaryAddedEvent implements AccountEvent @entity {
+  id: ID!
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  createSwapperEvent: CreateSwapperEvent
+  updateSwapperEvent: UpdateSwapperBeneficiaryEvent
+}
+
+type SwapperBeneficiaryRemovedEvent implements AccountEvent @entity {
+  id: ID!
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  updateSwapperEvent: UpdateSwapperBeneficiaryEvent!
+}
+
+type UpdateSwapperTokenEvent implements AccountEvent @entity {
+  id: ID! # uste-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+
+  oldToken: Token!
+  newToken: Token!
+}
+
+type UpdateSwapperOracleEvent implements AccountEvent @entity {
+  id: ID! # usoe-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+
+  oldOracle: Oracle!
+  newOracle: Oracle!
+}
+
+type UpdateSwapperDefaultScaledOfferFactorEvent implements AccountEvent
+  @entity {
+  id: ID! # usdsofe-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+
+  oldScaledOfferFactor: BigInt!
+  newScaledOfferFactor: BigInt!
+}
+
+type UpdateSwapperScaledOfferFactorOverridesEvent implements AccountEvent
+  @entity {
+  id: ID! # ussofoe-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+}
+
+type SwapFundsEvent implements AccountEvent @entity {
+  id: ID! # sfe-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+
+  inputAmount: BigInt!
+  inputToken: Token!
+  outputAmount: BigInt!
+  outputToken: Token!
+
+  recipient: ReceiveSwappedFundsEvent @derivedFrom(field: "swapFundsEvent")
+}
+
+type ReceiveSwappedFundsEvent implements AccountEvent @entity {
+  id: ID! # r-sfe-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  swapFundsEvent: SwapFundsEvent!
+}
+
+type CreatePassThroughWalletEvent implements AccountEvent @entity {
+  id: ID! # cptwe-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+
+  passThroughAccount: Account!
+}
+
+type UpdatePassThroughAccountEvent implements AccountEvent @entity {
+  id: ID! # uptae-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+
+  oldPassThroughAccount: Account!
+  newPassThroughAccount: Account!
+}
+
+type PassThroughFundsBalance @entity {
+  id: ID! # ${passThroughFundsEventId}-${tokenId}
+  token: Token!
+  amount: BigInt!
+
+  passThroughFundsEvent: PassThroughFundsEvent!
+}
+
+type PassThroughFundsEvent implements AccountEvent @entity {
+  id: ID! # ptfe-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+
+  passThroughBalances: [PassThroughFundsBalance!]
+    @derivedFrom(field: "passThroughFundsEvent")
+
+  recipient: ReceivePassThroughFundsEvent
+    @derivedFrom(field: "passThroughFundsEvent")
+}
+
+type ReceivePassThroughFundsEvent implements AccountEvent @entity {
+  id: ID! # r-ptfe-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  passThroughFundsEvent: PassThroughFundsEvent!
+}
+
+type ReceiveOwnerSwappedDiversifierFundsEvent implements AccountEvent @entity {
+  id: ID! #
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  swapDiversifierFundsBalance: SwapDiversifierFundsBalance!
+}
+
+type SwapDiversifierFundsBalance @entity {
+  id: ID! # ${owernSwapDiversifierFundsEventId}-${tokenId}-${recipientId}
+  inputToken: Token!
+  inputAmount: BigInt!
+  outputToken: Token!
+  outputAmount: BigInt!
+
+  recipient: ReceiveOwnerSwappedDiversifierFundsEvent
+    @derivedFrom(field: "swapDiversifierFundsBalance")
+  ownerSwapDiversifierFundsEvent: OwnerSwapDiversifierFundsEvent!
+}
+
+type OwnerSwapDiversifierFundsEvent implements AccountEvent @entity {
+  id: ID! # osdfe-${inputToken}-${txHash}-${logIdx}
+  timestamp: BigInt!
+  account: Account!
+  logIndex: BigInt!
+
+  transaction: Transaction!
+
+  swapDiversifierFundsBalances: [SwapDiversifierFundsBalance!]
+    @derivedFrom(field: "ownerSwapDiversifierFundsEvent")
+}
